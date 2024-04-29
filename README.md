@@ -1,5 +1,5 @@
 # What is this?
-A macro made in Python that can reach thousands of clicks/keypresses per second!
+A macro made in Python that can reach thousands of clicks/keypresses per second! (Windows only)
 # Features
 * Ultra-fast
 * Support for almost every key and mouse button
@@ -25,3 +25,4 @@ The compiled program can be found at ./main.dist/main.exe
 # Todo
 * Optimise settings system (can likely handle the settings saving within the settings menu itself, which would save a fair amount of resources)
 * Possibly remake in a more efficient language such as C++
+* Possibly make a Linux version if theres demand for it
