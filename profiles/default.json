@@ -1,0 +1,11 @@
+{
+    "hotkey": "f6",
+    "autoclick_delay": 0.0005,
+    "key_spam_delay": 0.025,
+    "key": "SPACE",
+    "click": "LBUTTON",
+    "click_duration_max": 0.0,
+    "click_duration_min": 0.0,
+    "press_duration_max": 0.0,
+    "press_duration_min": 0.0
+}

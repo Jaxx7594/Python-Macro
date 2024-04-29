@@ -1,0 +1,6 @@
+imageio==2.34.0
+Nuitka==2.1.5
+pillow==10.3.0
+pynput==1.7.6
+pystray==0.19.5
+ttkbootstrap==1.10.1

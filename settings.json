@@ -1,0 +1,6 @@
+{
+    "selected_profile": "default",
+    "profiles": {
+        "default": "profiles/default.json"
+    }
+}
