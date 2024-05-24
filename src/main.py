@@ -3,16 +3,11 @@ from pynput import keyboard
 from pystray import MenuItem, Menu, Icon
 from PIL import Image
 from threading import Thread
-from json import load
-from os import chdir
-from settings import change_settings_menu
+from os import chdir, path
+from settings import change_settings_menu, set_settings
 from directkeys import *
 from random import uniform
 
-# Goes to the root directory
-# (if the program errors when ran (not compiled) try commenting this out,
-# some IDE's such as PyCharm automatically set the working dir to the root dir)
-chdir("..")
 
 # Tried to keep this as fast as possible. All vars are initialised before activation so that no precious cpu cycles are
 # spent asking multiprocessing for a var, and instead firing off clicks/key presses
@@ -58,55 +53,10 @@ def on_off(key):
     elif key == _hotkey and running.value == True:
         running.value = False
 
-
+# Opens the settings menu.
 def change_settings():
-    settings_process = Process(target=change_settings_menu, args=(json_changed,))
+    settings_process = Process(target=change_settings_menu, args=(json_changed, d, click_text, key_text, hotkey_text, click_maximum, click_minimum, press_maximum, press_minimum, profile_text, hotkey,))
     settings_process.start()
-
-
-# Settings handler. Waits until settings have been marked as changed, then updates via the json file.
-def update_settings(settings_dict, click_text, key_text, hotkey_text, json_changed, _exit, click_maximum, click_minimum, press_maximum, press_minimum, profile_text, hotkey):
-    while _exit.value:
-        if json_changed.value:
-            with open('settings.json', 'r') as file:
-                main_settings = load(file)
-                profile = main_settings['selected_profile']
-                profiles = main_settings['profiles']
-                profile_path = profiles[profile]
-                profile_text.value = f"Profile: {profile}".encode('utf-8')
-                with open(profile_path, 'r') as file:
-                    settings = load(file)
-                    settings_dict["autoclick_delay"] = settings["autoclick_delay"]
-                    settings_dict["q_spam_delay"] = settings["key_spam_delay"]
-                    click = settings["click"]
-                    settings_dict["click"] = globals().get(click.upper(), None)
-                    click_text.value = f"Click Type: {click.upper()}".encode('utf-8')
-
-                    _hotkey = settings["hotkey"]
-                    hotkey.value = _hotkey.encode('utf-8')
-                    hotkey_text.value = f"Hotkey: {_hotkey.upper()}".encode('utf-8')
-                    key = settings["key"]
-                    key_text.value = f"Key: {key.upper()}".encode("utf-8")
-
-                    click_maximum.value = settings["click_duration_max"]
-                    click_minimum.value = settings["click_duration_min"]
-                    press_maximum.value = settings["press_duration_max"]
-                    press_minimum.value = settings["press_duration_min"]
-
-                    if isinstance(settings["key"], int):
-                        integer = integer_names.get(settings["key"])
-                        settings_dict["key"] = globals().get(integer, None)
-                    else:
-                        key_input = settings["key"].upper()
-                        if key_input.isdigit():
-                            key_name = integer_names.get(int(key_input), None)
-                        else:
-                            key_name = key_input
-                        settings_dict["key"] = globals().get(key_name, None)
-
-                    json_changed.value = False
-
-        sleep(1.5)
 
 
 # Terminates all threads/subprocesses by setting exit_bool to False. Any thread/subprocess with a while loop checks if
@@ -136,9 +86,10 @@ def update_menu(icon, _exit):
         sleep(1)
         icon.update_menu()
 
-
+# Updates settings. This is activated via a tray button.
+# Only needed if the user changes json files directly rather than using the settings menu.
 def trigger_settings_update(icon, item):
-    json_changed.value = True
+    set_settings(d, click_text, key_text, hotkey_text, click_maximum, click_minimum, press_maximum, press_minimum, profile_text, hotkey)
 
 
 # Tray menu. I don't think a simple macro should need a full on GUI, so I settled on a tray application.
@@ -173,6 +124,11 @@ def tray(click_text, mode_text, key_text, hotkey_text, autoclick_state, q_spam_s
 
 # Starts all the threads and subprocesses, and also initialises all the shared variables
 if __name__ == "__main__":
+
+    # Sets working dir to root dir.
+    chdir(path.dirname(path.abspath(__file__)))
+    chdir("..")
+
     with Manager() as manager:
 
         settings_changed_bool = Value('b', True)
@@ -197,7 +153,7 @@ if __name__ == "__main__":
         press_maximum = Value('d', 0.0)
         press_minimum = Value('d', 0.0)
 
-        settings_process = Process(target=update_settings, args=(d, click_text, key_text, hotkey_text, json_changed, exit_bool, click_maximum, click_minimum, press_maximum, press_minimum, profile_text, hotkey,))
+        settings_process = Process(target=set_settings, args=(d, click_text, key_text, hotkey_text, click_maximum, click_minimum, press_maximum, press_minimum, profile_text, hotkey,))
         settings_process.start()
         p = Process(target=main, args=(running, exit_bool, mode_str, d, click_maximum, click_minimum, press_maximum, press_minimum,))
         p.start()

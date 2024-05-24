@@ -72,7 +72,7 @@ nuitka ./src/main.py --enable-plugin=tk-inter --disable-console --windows-icon-f
 ```
 The compiled program can be found at ./main.dist/main.exe
 # Todo
-* Optimise settings system (can likely handle the settings saving within the settings menu itself, which would save a fair amount of resources)
+* ~~Optimise settings system (can likely handle the settings saving within the settings menu itself, which would save a fair amount of resources)~~ **Done**
 * Add more explanatory comments
 * General code cleanup
 * Possibly remake in a more efficient language such as C++

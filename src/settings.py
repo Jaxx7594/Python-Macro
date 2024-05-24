@@ -1,5 +1,3 @@
-from tkinter import messagebox
-
 from ttkbootstrap import *
 from ttkbootstrap.dialogs.dialogs import Messagebox
 from json import dump, load
@@ -22,6 +20,45 @@ key_min_entry = None
 successful = False
 
 click_types = ['', 'LBUTTON', 'RBUTTON', 'MBUTTON', 'XBUTTON1', 'XBUTTON2']
+
+
+def set_settings(settings_dict, click_text, key_text, hotkey_text, click_maximum, click_minimum, press_maximum, press_minimum, profile_text, hotkey):
+    with open('settings.json', 'r') as file:
+        main_settings = load(file)
+        profile = main_settings['selected_profile']
+        profiles = main_settings['profiles']
+        profile_path = profiles[profile]
+        profile_text.value = f"Profile: {profile}".encode('utf-8')
+        with open(profile_path, 'r') as file:
+            settings = load(file)
+            settings_dict["autoclick_delay"] = settings["autoclick_delay"]
+            settings_dict["q_spam_delay"] = settings["key_spam_delay"]
+            click = settings["click"]
+            settings_dict["click"] = globals().get(click.upper(), None)
+            click_text.value = f"Click Type: {click.upper()}".encode('utf-8')
+
+            _hotkey = settings["hotkey"]
+            hotkey.value = _hotkey.encode('utf-8')
+            hotkey_text.value = f"Hotkey: {_hotkey.upper()}".encode('utf-8')
+            key = settings["key"]
+            key_text.value = f"Key: {key.upper()}".encode("utf-8")
+
+            click_maximum.value = settings["click_duration_max"]
+            click_minimum.value = settings["click_duration_min"]
+            press_maximum.value = settings["press_duration_max"]
+            press_minimum.value = settings["press_duration_min"]
+
+            if isinstance(settings["key"], int):
+                integer = integer_names.get(settings["key"])
+                settings_dict["key"] = globals().get(integer, None)
+            else:
+                key_input = settings["key"].upper()
+                if key_input.isdigit():
+                    key_name = integer_names.get(int(key_input), None)
+                else:
+                    key_name = key_input
+                settings_dict["key"] = globals().get(key_name, None)
+
 
 def validate(show_messages=True):
     global hotkey_entry, autoclick_delay_entry, key_spam_delay_entry, key_entry, click_type, click_max_entry, click_min_entry, key_max_entry, key_min_entry
@@ -104,12 +141,11 @@ def validate(show_messages=True):
     if error:
         return False
 
-
     autoclick_delay = float(autoclick_delay)
     key_spam_delay = float(key_spam_delay)
 
     if autoclick_delay < 0.00025 or key_spam_delay < 0.00025:
-        Messagebox.show_warning(title='Warning', message='Delays below 0.00025 are likely to crash programs and low end devices due to its sheer speed. Proceed with caution.')
+        Messagebox.show_warning(title='Warning', message='Delays below 0.00025 are likely to degrade performance and/or crash programs on low end devices due to its sheer speed. Proceed with caution.')
 
     # Save settings to JSON file
     settings = {
@@ -127,7 +163,7 @@ def validate(show_messages=True):
 
 # Checks if settings entered are valid. If they aren't, it shows an error to the user and doesn't modify the json file,
 # If they are, it dumps it in the json file and sets a shared var to tell the settings updater in main.py to update.
-def save_settings(json_changed, profile_var):
+def save_settings(profile_var, settings_dict, click_text, key_text, hotkey_text, click_maximum, click_minimum, press_maximum, press_minimum, profile_text, hotkey):
 
     settings = validate()
     if settings == False:
@@ -148,13 +184,14 @@ def save_settings(json_changed, profile_var):
 
         with open(profile_path, 'w') as file:
             dump(settings, file, indent=4)
-    json_changed.value = True
+    #json_changed.value = True
+    set_settings(settings_dict, click_text, key_text, hotkey_text, click_maximum, click_minimum, press_maximum, press_minimum, profile_text, hotkey)
     Messagebox.show_info(title='Message', message='Settings saved successfully.')
     return True
 
 
 # Starts the tkinter GUI for changing settings. Just a simple json frontend for the non tech nerds basically.
-def change_settings_menu(json_changed):
+def change_settings_menu(json_changed, settings_dict, click_text, key_text, hotkey_text, click_maximum, click_minimum, press_maximum, press_minimum, profile_text, hotkey):
     global hotkey_entry, autoclick_delay_entry, key_spam_delay_entry, key_entry, click_type, click_max_entry, click_min_entry, key_max_entry, key_min_entry, successful
 
     root = Window()
@@ -310,18 +347,18 @@ def change_settings_menu(json_changed):
                 else:
                     return True
 
-    def _save_settings(json_changed, profile_var):
+    def _save_settings(profile_var):
         global successful
         if profile_var.get() == '':
             Messagebox.show_error('Please select or create a profile and try again.', 'Error')
             return
-        successful = save_settings(json_changed, profile_var)
+        successful = save_settings(profile_var, settings_dict, click_text, key_text, hotkey_text, click_maximum, click_minimum, press_maximum, press_minimum, profile_text, hotkey)
         if not successful:
             return
         update_settings(profile_var.get())
 
     # Button to save settings
-    update_button = Button(root, text='Save Profile', command=lambda: _save_settings(json_changed, profile_var), width=19)
+    update_button = Button(root, text='Save Profile', command=lambda: _save_settings(profile_var), width=19)
     update_button.grid(row=10, column=0, pady=10)
 
     root.mainloop()
