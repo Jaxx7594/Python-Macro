@@ -1,4 +1,6 @@
 {
+    "first_time_running": true,
+    "show_multiple_instances_error": true,
     "selected_profile": "default",
     "profiles": {
         "default": "profiles/default.json"

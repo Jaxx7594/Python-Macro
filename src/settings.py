@@ -22,9 +22,10 @@ successful = False
 click_types = ['', 'LBUTTON', 'RBUTTON', 'MBUTTON', 'XBUTTON1', 'XBUTTON2']
 
 
-def set_settings(settings_dict, click_text, key_text, hotkey_text, click_maximum, click_minimum, press_maximum, press_minimum, profile_text, hotkey):
+def set_settings(settings_dict, click_text, key_text, hotkey_text, click_maximum, click_minimum, press_maximum, press_minimum, profile_text, hotkey, first_time_running):
     with open('settings.json', 'r') as file:
         main_settings = load(file)
+        first_time_running.value = main_settings['first_time_running']
         profile = main_settings['selected_profile']
         profiles = main_settings['profiles']
         profile_path = profiles[profile]
@@ -184,14 +185,14 @@ def save_settings(profile_var, settings_dict, click_text, key_text, hotkey_text,
 
         with open(profile_path, 'w') as file:
             dump(settings, file, indent=4)
-    #json_changed.value = True
+
     set_settings(settings_dict, click_text, key_text, hotkey_text, click_maximum, click_minimum, press_maximum, press_minimum, profile_text, hotkey)
     Messagebox.show_info(title='Message', message='Settings saved successfully.')
     return True
 
 
 # Starts the tkinter GUI for changing settings. Just a simple json frontend for the non tech nerds basically.
-def change_settings_menu(json_changed, settings_dict, click_text, key_text, hotkey_text, click_maximum, click_minimum, press_maximum, press_minimum, profile_text, hotkey):
+def change_settings_menu(first_time_running, settings_dict, click_text, key_text, hotkey_text, click_maximum, click_minimum, press_maximum, press_minimum, profile_text, hotkey):
     global hotkey_entry, autoclick_delay_entry, key_spam_delay_entry, key_entry, click_type, click_max_entry, click_min_entry, key_max_entry, key_min_entry, successful
 
     root = Window()
@@ -200,6 +201,16 @@ def change_settings_menu(json_changed, settings_dict, click_text, key_text, hotk
     icon = PhotoImage(file=r"images/icon.png")
     root.iconphoto(False, icon)
     root.resizable(False, False)
+
+    if first_time_running.value:
+        Messagebox.show_info(title="First time?", message="Looks like this is your first time using this application. All controls/settings are accessed via the system tray. The settings menu has been opened for you so you can configure it to your liking. More in depth information can be found on Github. Enjoy the macro!")
+        with open('settings.json', 'r+') as file:
+            settings = load(file)
+            settings['first_time_running'] = False
+
+            file.seek(0)
+            file.truncate()
+            dump(settings, file, indent=4)
 
     def on_close():
         if saving_needed():

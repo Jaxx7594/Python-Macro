@@ -1,3 +1,4 @@
+import sys
 from multiprocessing import Process, Value, Array, Manager
 from pynput import keyboard
 from pystray import MenuItem, Menu, Icon
@@ -7,7 +8,10 @@ from os import chdir, path
 from settings import change_settings_menu, set_settings
 from directkeys import *
 from random import uniform
-
+from ctypes import windll, c_void_p, c_bool, c_wchar_p
+from json import load, dump
+from ttkbootstrap.dialogs.dialogs import Messagebox
+import ttkbootstrap as ttk
 
 # Tried to keep this as fast as possible. All vars are initialised before activation so that no precious cpu cycles are
 # spent asking multiprocessing for a var, and instead firing off clicks/key presses
@@ -55,7 +59,7 @@ def on_off(key):
 
 # Opens the settings menu.
 def change_settings():
-    settings_process = Process(target=change_settings_menu, args=(json_changed, d, click_text, key_text, hotkey_text, click_maximum, click_minimum, press_maximum, press_minimum, profile_text, hotkey,))
+    settings_process = Process(target=change_settings_menu, args=(first_time_running, d, click_text, key_text, hotkey_text, click_maximum, click_minimum, press_maximum, press_minimum, profile_text, hotkey,))
     settings_process.start()
 
 
@@ -122,6 +126,23 @@ def tray(click_text, mode_text, key_text, hotkey_text, autoclick_state, q_spam_s
     icon.run()
 
 
+def is_another_instance_running():
+    # Define the CreateMutexW function
+    CreateMutexW = windll.kernel32.CreateMutexW
+    CreateMutexW.argtypes = [c_void_p, c_bool, c_wchar_p]
+    CreateMutexW.restype = c_void_p
+
+    # Create a named mutex
+    mutex_name = "PythonMacro mutex"
+    handle = CreateMutexW(None, False, mutex_name)
+
+    # Check if the mutex already exists
+    ERROR_ALREADY_EXISTS = 183
+    if ctypes.windll.kernel32.GetLastError() == ERROR_ALREADY_EXISTS:
+        return True
+    return False
+
+
 # Starts all the threads and subprocesses, and also initialises all the shared variables
 if __name__ == "__main__":
 
@@ -129,9 +150,25 @@ if __name__ == "__main__":
     chdir(path.dirname(path.abspath(__file__)))
     chdir("..")
 
+    if is_another_instance_running():
+        if load(open('settings.json', 'r'))['show_multiple_instances_error']:
+            root = ttk.Window()
+            root.style.theme_use('darkly')
+            result = Messagebox.show_question(title='Already running!', message='This macro is already running! You cannot have multiple instances of this macro running at the same time. You can find the controls of the currently running instance in the system tray. ', buttons=["Don't Show Again:secondary", "Ok:primary"])
+            root.destroy()
+            if result == "Don't Show Again":
+                with open('settings.json', 'r+') as file:
+                    settings = load(file)
+                    settings['show_multiple_instances_error'] = False
+
+                    file.seek(0)
+                    file.truncate()
+                    dump(settings, file, indent=4)
+        sys.exit()
+
     with Manager() as manager:
 
-        settings_changed_bool = Value('b', True)
+
         running = Value('b', False)
         exit_bool = Value('b', True)
         mode_str = Array('c', b"Autoclicker")
@@ -140,7 +177,7 @@ if __name__ == "__main__":
 
         q_spam_state = Value('b', False)
         d = manager.dict()
-        json_changed = Value('b', True)
+        first_time_running = Value('b', 2)
         click_text = Array('c', b"                    ")
         mode_text = Array('c', b"Mode: Autoclicker")
         key_text = Array('c', b"                    ")
@@ -153,7 +190,7 @@ if __name__ == "__main__":
         press_maximum = Value('d', 0.0)
         press_minimum = Value('d', 0.0)
 
-        settings_process = Process(target=set_settings, args=(d, click_text, key_text, hotkey_text, click_maximum, click_minimum, press_maximum, press_minimum, profile_text, hotkey,))
+        settings_process = Process(target=set_settings, args=(d, click_text, key_text, hotkey_text, click_maximum, click_minimum, press_maximum, press_minimum, profile_text, hotkey, first_time_running))
         settings_process.start()
         p = Process(target=main, args=(running, exit_bool, mode_str, d, click_maximum, click_minimum, press_maximum, press_minimum,))
         p.start()
@@ -161,4 +198,11 @@ if __name__ == "__main__":
         listener.start()
         tray_thread = Thread(target=tray, args=(click_text, mode_text, key_text, hotkey_text, autoclick_state, q_spam_state, profile_text,))
         tray_thread.start()
+
+        while first_time_running.value == 2:
+            sleep(0.1)
+
+        if first_time_running.value:
+            change_settings()
+
         tray_thread.join()
