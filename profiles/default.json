@@ -1,5 +1,6 @@
 {
     "hotkey": "f6",
+    "mode_switch_hotkey": "f5",
     "autoclick_delay": 0.0005,
     "key_spam_delay": 0.025,
     "key": "SPACE",

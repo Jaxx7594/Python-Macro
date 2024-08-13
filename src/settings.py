@@ -7,6 +7,7 @@ from os import remove
 
 # Define global variables
 hotkey_entry = None
+mode_switch_hotkey_entry = None
 autoclick_delay_entry = None
 key_spam_delay_entry = None
 key_entry = None
@@ -22,7 +23,7 @@ successful = False
 click_types = ['', 'LBUTTON', 'RBUTTON', 'MBUTTON', 'XBUTTON1', 'XBUTTON2']
 
 
-def set_settings(settings_dict, click_text, key_text, hotkey_text, click_maximum, click_minimum, press_maximum, press_minimum, profile_text, hotkey, first_time_running):
+def set_settings(settings_dict, click_text, key_text, hotkey_text, click_maximum, click_minimum, press_maximum, press_minimum, profile_text, hotkey, mode_switch_hotkey, first_time_running):
     with open('settings.json', 'r') as file:
         main_settings = load(file)
         first_time_running.value = main_settings['first_time_running']
@@ -37,6 +38,9 @@ def set_settings(settings_dict, click_text, key_text, hotkey_text, click_maximum
             click = settings["click"]
             settings_dict["click"] = globals().get(click.upper(), None)
             click_text.value = f"Click Type: {click.upper()}".encode('utf-8')
+
+            _mode_switch_hotkey = settings["mode_switch_hotkey"]
+            mode_switch_hotkey.value = _mode_switch_hotkey.encode('utf-8')
 
             _hotkey = settings["hotkey"]
             hotkey.value = _hotkey.encode('utf-8')
@@ -62,7 +66,7 @@ def set_settings(settings_dict, click_text, key_text, hotkey_text, click_maximum
 
 
 def validate(show_messages=True):
-    global hotkey_entry, autoclick_delay_entry, key_spam_delay_entry, key_entry, click_type, click_max_entry, click_min_entry, key_max_entry, key_min_entry
+    global hotkey_entry, mode_switch_hotkey_entry, autoclick_delay_entry, key_spam_delay_entry, key_entry, click_type, click_max_entry, click_min_entry, key_max_entry, key_min_entry
 
     error = False
     value_error = False
@@ -72,6 +76,7 @@ def validate(show_messages=True):
     click_max = click_max_entry.get()
     click_min = click_min_entry.get()
     hotkey = hotkey_entry.get()
+    mode_switch_hotkey = mode_switch_hotkey_entry.get()
     key = key_entry.get()
     key_max = key_max_entry.get()
     key_min = key_min_entry.get()
@@ -122,6 +127,10 @@ def validate(show_messages=True):
         err(title='Error', message='Invalid hotkey.')
         error = True
 
+    if not hasattr(Key, mode_switch_hotkey):
+        err(title='Error', message='Invalid mode switch hotkey.')
+        error = True
+
     if key.isdigit():
         integer = integer_names.get(int(key), None)
         if integer == None or key == None:
@@ -151,6 +160,7 @@ def validate(show_messages=True):
     # Save settings to JSON file
     settings = {
         "hotkey": hotkey,
+        "mode_switch_hotkey": mode_switch_hotkey,
         "autoclick_delay": autoclick_delay,
         "key_spam_delay": key_spam_delay,
         "key": key,
@@ -164,7 +174,7 @@ def validate(show_messages=True):
 
 # Checks if settings entered are valid. If they aren't, it shows an error to the user and doesn't modify the json file,
 # If they are, it dumps it in the json file and sets a shared var to tell the settings updater in main.py to update.
-def save_settings(profile_var, settings_dict, click_text, key_text, hotkey_text, click_maximum, click_minimum, press_maximum, press_minimum, profile_text, hotkey):
+def save_settings(profile_var, settings_dict, click_text, key_text, hotkey_text, click_maximum, click_minimum, press_maximum, press_minimum, profile_text, hotkey, mode_switch_hotkey, first_time_running):
 
     settings = validate()
     if settings == False:
@@ -186,14 +196,14 @@ def save_settings(profile_var, settings_dict, click_text, key_text, hotkey_text,
         with open(profile_path, 'w') as file:
             dump(settings, file, indent=4)
 
-    set_settings(settings_dict, click_text, key_text, hotkey_text, click_maximum, click_minimum, press_maximum, press_minimum, profile_text, hotkey)
+    set_settings(settings_dict, click_text, key_text, hotkey_text, click_maximum, click_minimum, press_maximum, press_minimum, profile_text, hotkey, mode_switch_hotkey, first_time_running)
     Messagebox.show_info(title='Message', message='Settings saved successfully.')
     return True
 
 
 # Starts the tkinter GUI for changing settings. Just a simple json frontend for the non tech nerds basically.
-def change_settings_menu(first_time_running, settings_dict, click_text, key_text, hotkey_text, click_maximum, click_minimum, press_maximum, press_minimum, profile_text, hotkey):
-    global hotkey_entry, autoclick_delay_entry, key_spam_delay_entry, key_entry, click_type, click_max_entry, click_min_entry, key_max_entry, key_min_entry, successful
+def change_settings_menu(first_time_running, settings_dict, click_text, key_text, hotkey_text, click_maximum, click_minimum, press_maximum, press_minimum, profile_text, hotkey, mode_switch_hotkey):
+    global hotkey_entry, mode_switch_hotkey_entry, autoclick_delay_entry, key_spam_delay_entry, key_entry, click_type, click_max_entry, click_min_entry, key_max_entry, key_min_entry, successful
 
     root = Window()
     root.style.theme_use('darkly')
@@ -226,6 +236,7 @@ def change_settings_menu(first_time_running, settings_dict, click_text, key_text
     # Create labels and entry fields for each setting
     labels_entries = [
         ("Hotkey:", hotkey_entry),
+        ("Mode Switch Hotkey:", mode_switch_hotkey_entry),
         ("Autoclick Delay:", autoclick_delay_entry),
         ("Click Duration Minimum:", click_min_entry),
         ("Click Duration Maximum:", click_max_entry),
@@ -243,6 +254,8 @@ def change_settings_menu(first_time_running, settings_dict, click_text, key_text
         # Assign the correct entry variables to global variables
         if label_text == "Hotkey:":
             hotkey_entry = entry_var
+        elif label_text == "Mode Switch Hotkey:":
+            mode_switch_hotkey_entry = entry_var
         elif label_text == "Autoclick Delay:":
             autoclick_delay_entry = entry_var
         elif label_text == "Click Duration Minimum:":
@@ -262,7 +275,7 @@ def change_settings_menu(first_time_running, settings_dict, click_text, key_text
     Label(root, text='Click type:').grid(row=8, column=0, padx=10, pady=5, sticky='w')
     click_menu = OptionMenu(root, click_type, *click_types)
     click_menu.grid(row=8, column=1, padx=10, pady=5)
-    click_menu.config(width=16)
+    click_menu.config(width=15)
 
     def delete_profile():
         with open('settings.json', 'r+') as file:
@@ -285,9 +298,9 @@ def change_settings_menu(first_time_running, settings_dict, click_text, key_text
             with open(profile_path, 'r') as file:
                 settings = load(file)
                 for entry_var, setting_key in zip(
-                        [hotkey_entry, autoclick_delay_entry, click_min_entry, click_max_entry, key_spam_delay_entry,
+                        [hotkey_entry, mode_switch_hotkey_entry, autoclick_delay_entry, click_min_entry, click_max_entry, key_spam_delay_entry,
                          key_min_entry, key_max_entry, key_entry],
-                        ["hotkey", "autoclick_delay", "click_duration_min", "click_duration_max", "key_spam_delay",
+                        ["hotkey", "mode_switch_hotkey", "autoclick_delay", "click_duration_min", "click_duration_max", "key_spam_delay",
                          "press_duration_min", "press_duration_max", "key"]):
                     entry_var.delete(0, END)
                     entry_var.insert(0, settings.get(setting_key, ''))
@@ -296,9 +309,9 @@ def change_settings_menu(first_time_running, settings_dict, click_text, key_text
                 delete_profile_button.grid(row=10, column=1, pady=10)
         else:
             for entry_var, setting_key in zip(
-                    [hotkey_entry, autoclick_delay_entry, click_min_entry, click_max_entry, key_spam_delay_entry,
+                    [hotkey_entry, mode_switch_hotkey_entry, autoclick_delay_entry, click_min_entry, click_max_entry, key_spam_delay_entry,
                      key_min_entry, key_max_entry, key_entry],
-                    ["hotkey", "autoclick_delay", "click_duration_min", "click_duration_max", "key_spam_delay",
+                    ["hotkey", "mode_switch_hotkey", "autoclick_delay", "click_duration_min", "click_duration_max", "key_spam_delay",
                      "press_duration_min", "press_duration_max", "key"]):
                 entry_var.delete(0, END)
             click_type.set('')
@@ -363,7 +376,7 @@ def change_settings_menu(first_time_running, settings_dict, click_text, key_text
         if profile_var.get() == '':
             Messagebox.show_error('Please select or create a profile and try again.', 'Error')
             return
-        successful = save_settings(profile_var, settings_dict, click_text, key_text, hotkey_text, click_maximum, click_minimum, press_maximum, press_minimum, profile_text, hotkey)
+        successful = save_settings(profile_var, settings_dict, click_text, key_text, hotkey_text, click_maximum, click_minimum, press_maximum, press_minimum, profile_text, hotkey, mode_switch_hotkey, first_time_running)
         if not successful:
             return
         update_settings(profile_var.get())

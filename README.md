@@ -69,6 +69,7 @@ python -m pip install -r requirements.txt
 **3.** Build:
 ```console
 nuitka ./src/main.py --enable-plugin=tk-inter --disable-console --windows-icon-from-ico=./images/icon.png --remove-output --standalone --assume-yes-for-downloads
+nuitka ./src/updater.py --enable-plugin=tk-inter --disable-console --windows-icon-from-ico=./images/icon.png --remove-output --standalone --assume-yes-for-downloads
 ```
 The compiled program can be found at ./main.dist/main.exe
 # Todo

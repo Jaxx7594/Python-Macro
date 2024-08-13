@@ -1,5 +1,6 @@
 import sys
 from multiprocessing import Process, Value, Array, Manager
+from subprocess import Popen, CREATE_NEW_CONSOLE
 from pynput import keyboard
 from pystray import MenuItem, Menu, Icon
 from PIL import Image
@@ -7,11 +8,35 @@ from threading import Thread
 from os import chdir, path
 from settings import change_settings_menu, set_settings
 from directkeys import *
+from updater import *
 from random import uniform
 from ctypes import windll, c_void_p, c_bool, c_wchar_p
 from json import load, dump
 from ttkbootstrap.dialogs.dialogs import Messagebox
+from windows_toasts import Toast, ToastDisplayImage, WindowsToaster
 import ttkbootstrap as ttk
+import requests
+
+import winrt.windows.foundation.collections # This is simply to ensure Nuitka realises this is a requirement.
+
+
+def toast(text):
+    toaster = WindowsToaster('Macro')
+
+    toast = Toast()
+    toast.text_fields = [text]
+    # str or PathLike
+    toast.AddImage(ToastDisplayImage.fromPath('./images/icon.png'))
+
+    toaster.show_toast(toast)
+
+def internet_connected():
+    try:
+        requests.get("https://github.com", timeout=8)
+        return True
+    except requests.ConnectionError:
+        return False
+
 
 # Tried to keep this as fast as possible. All vars are initialised before activation so that no precious cpu cycles are
 # spent asking multiprocessing for a var, and instead firing off clicks/key presses
@@ -49,7 +74,9 @@ def duration(_min, _max):
 def on_off(key):
     global running
     global hotkey
+    global mode_switch_hotkey
     _hotkey = getattr(keyboard.Key, hotkey.value.decode('utf-8'), None)
+    _mode_switch_hotkey = getattr(keyboard.Key, mode_switch_hotkey.value.decode('utf-8'), None)
 
     if key == _hotkey and running.value == False:
         running.value = True
@@ -57,9 +84,24 @@ def on_off(key):
     elif key == _hotkey and running.value == True:
         running.value = False
 
+    elif key == _mode_switch_hotkey:
+        if not running.value:
+            if mode_str.value.decode('utf-8') == "Autoclicker":
+                q_spam_state.value = True
+                autoclick_state.value = not q_spam_state.value
+                mode_str.value = "Key Spammer".encode('utf-8')
+            else:
+                autoclick_state.value = True
+                q_spam_state.value = not autoclick_state.value
+                mode_str.value = "Autoclicker".encode('utf-8')
+
+            toast(f"Changed mode: {mode_str.value.decode('utf-8')}")
+        else:
+            toast('Cannot change mode whilst running.')
+
 # Opens the settings menu.
 def change_settings():
-    settings_process = Process(target=change_settings_menu, args=(first_time_running, d, click_text, key_text, hotkey_text, click_maximum, click_minimum, press_maximum, press_minimum, profile_text, hotkey,))
+    settings_process = Process(target=change_settings_menu, args=(first_time_running, d, click_text, key_text, hotkey_text, click_maximum, click_minimum, press_maximum, press_minimum, profile_text, hotkey, mode_switch_hotkey,))
     settings_process.start()
 
 
@@ -93,7 +135,7 @@ def update_menu(icon, _exit):
 # Updates settings. This is activated via a tray button.
 # Only needed if the user changes json files directly rather than using the settings menu.
 def trigger_settings_update(icon, item):
-    set_settings(d, click_text, key_text, hotkey_text, click_maximum, click_minimum, press_maximum, press_minimum, profile_text, hotkey)
+    set_settings(d, click_text, key_text, hotkey_text, click_maximum, click_minimum, press_maximum, press_minimum, profile_text, hotkey, mode_switch_hotkey)
 
 
 # Tray menu. I don't think a simple macro should need a full on GUI, so I settled on a tray application.
@@ -142,13 +184,58 @@ def is_another_instance_running():
         return True
     return False
 
-
 # Starts all the threads and subprocesses, and also initialises all the shared variables
 if __name__ == "__main__":
 
     # Sets working dir to root dir.
     chdir(path.dirname(path.abspath(__file__)))
-    chdir("..")
+    chdir('..')
+
+    if not internet_connected():
+        root = ttk.Window()
+        root.style.theme_use('darkly')
+        Messagebox.show_error(title='Internet not connected',
+                              message='It seems you do not currently have an internet connection, so this macro will not be able to check for updates. You can still use it though.')
+        root.destroy()
+    # Checks for updates, and if there is an update available, starts the updater and exits.
+    elif new_version_available("Jaxx7594", "Python-Macro", load(open('settings.json', 'r'))):
+
+        root = ttk.Window()
+        root.style.theme_use('darkly')
+        result = Messagebox.show_question(title='Update available', message='There is a new update available. Would you like to update now?', buttons=["No:secondary", "Yes:primary"])
+        root.destroy()
+
+        if result == "Yes":
+
+            download_latest_release('Jaxx7594', 'Python-Macro')
+
+            if path.basename(path.dirname(path.abspath(__file__))) == "main.dist":
+                try:
+                    extract_specific_directory(zip_file, 'Macro/updater.dist', './updater.dist')
+                except Exception as error:
+                    root = ttk.Window()
+                    root.style.theme_use('darkly')
+                    Messagebox.show_error(title='Update failed',
+                                          message=f'We failed to update the updater. The update cannot continue, as using an old updater version may cause problems. Please report this to the Github repository. The macro will now terminate.\n Specific error:\n{error}')
+                    root.destroy()
+                    exit()
+
+                Popen(['updater.dist\\updater.exe'], creationflags=CREATE_NEW_CONSOLE)
+                exit()
+
+            else:
+
+                try:
+                    extract_specific_file(zip_file, 'Macro/src/updater.py', './src/updater.py')
+                except Exception as error:
+                    root = ttk.Window()
+                    root.style.theme_use('darkly')
+                    Messagebox.show_error(title='Update failed', message=f'We failed to update the updater. The update cannot continue, as using an old updater version may cause problems. Please report this to the Github repository. Seeing as you\'re likely a developer, please provide proper debug information. The macro will now terminate. \n Specific error:\n{error}')
+                    root.destroy()
+                    exit()
+
+                Popen(['pythonw', 'src\\updater.py'], creationflags=CREATE_NEW_CONSOLE)
+                exit()
 
     if is_another_instance_running():
         if load(open('settings.json', 'r'))['show_multiple_instances_error']:
@@ -174,6 +261,7 @@ if __name__ == "__main__":
         mode_str = Array('c', b"Autoclicker")
         autoclick_state = Value('b', True)
         hotkey = Array('c', b"         ")
+        mode_switch_hotkey = Array('c', b"         ")
 
         q_spam_state = Value('b', False)
         d = manager.dict()
@@ -190,7 +278,7 @@ if __name__ == "__main__":
         press_maximum = Value('d', 0.0)
         press_minimum = Value('d', 0.0)
 
-        settings_process = Process(target=set_settings, args=(d, click_text, key_text, hotkey_text, click_maximum, click_minimum, press_maximum, press_minimum, profile_text, hotkey, first_time_running))
+        settings_process = Process(target=set_settings, args=(d, click_text, key_text, hotkey_text, click_maximum, click_minimum, press_maximum, press_minimum, profile_text, hotkey, mode_switch_hotkey, first_time_running))
         settings_process.start()
         p = Process(target=main, args=(running, exit_bool, mode_str, d, click_maximum, click_minimum, press_maximum, press_minimum,))
         p.start()
