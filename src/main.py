@@ -220,7 +220,7 @@ if __name__ == "__main__":
                     root.destroy()
                     exit()
 
-                Popen(['updater.dist\\updater.exe'], creationflags=CREATE_NEW_CONSOLE)
+                Popen(['updater.dist\\updater.exe'], shell=True, creationflags=CREATE_NEW_CONSOLE)
                 exit()
 
             else:
